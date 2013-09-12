@@ -46,7 +46,7 @@ int XShmGetEventBase( Display* dpy ); // problems with g++?
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <errnos.h>
+#include <errno.h>
 #include <signal.h>
 
 #include "doomstat.h"
@@ -666,7 +666,6 @@ void grabsharedmemory(int size)
       id = shmget((key_t)key, size, IPC_CREAT|0777);
       if (id==-1)
       {
-	extern int errno;
 	fprintf(stderr, "errno=%d\n", errno);
 	I_Error("Could not get any shared memory");
       }
@@ -768,8 +767,8 @@ void I_InitGraphics(void)
 
     // use the default visual 
     X_screen = DefaultScreen(X_display);
-    if (!XMatchVisualInfo(X_display, X_screen, 8, PseudoColor, &X_visualinfo))
-	I_Error("xdoom currently only supports 256-color PseudoColor screens");
+    if (!XMatchVisualInfo(X_display, X_screen, 24, TrueColor, &X_visualinfo))
+        I_Error("xdoom currently only supports 256-color PseudoColor screens");
     X_visual = X_visualinfo.visual;
 
     // check for the MITSHM extension
@@ -778,21 +777,26 @@ void I_InitGraphics(void)
     // even if it's available, make sure it's a local connection
     if (doShm)
     {
-	if (!displayname) displayname = (char *) getenv("DISPLAY");
-	if (displayname)
-	{
-	    d = displayname;
-	    while (*d && (*d != ':')) d++;
-	    if (*d) *d = 0;
-	    if (!(!strcasecmp(displayname, "unix") || !*displayname)) doShm = false;
-	}
+        if (!displayname) displayname = (char *)
+            getenv("DISPLAY");
+
+        if (displayname)
+        {
+            d = displayname;
+            while (*d && (*d != ':'))
+                d++;
+            if (*d)
+                *d = 0;
+            if (!(!strcasecmp(displayname, "unix") || !*displayname))
+                doShm = false;
+        }
     }
 
     fprintf(stderr, "Using MITSHM extension\n");
 
     // create the colormap
     X_cmap = XCreateColormap(X_display, RootWindow(X_display,
-						   X_screen), X_visual, AllocAll);
+						   X_screen), X_visual, AllocNone);
 
     // setup attributes for main window
     attribmask = CWEventMask | CWColormap | CWBorderPixel;
@@ -811,7 +815,7 @@ void I_InitGraphics(void)
 					x, y,
 					X_width, X_height,
 					0, // borderwidth
-					8, // depth
+					24, // depth
 					InputOutput,
 					X_visual,
 					attribmask,
@@ -858,7 +862,7 @@ void I_InitGraphics(void)
 	// create the image
 	image = XShmCreateImage(	X_display,
 					X_visual,
-					8,
+					24,
 					ZPixmap,
 					0,
 					&X_shminfo,
